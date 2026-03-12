@@ -26,14 +26,22 @@ class OptimizedImage extends Model
 
     /**
      * Get the absolute path to this image on disk.
+     *
+     * @throws \RuntimeException If the resolved path escapes the expected base directory.
      */
     public function absolutePath(): string
     {
-        if ($this->disk === 'public_path') {
-            return public_path($this->path);
+        $base = $this->disk === 'public_path' ? public_path() : storage_path('app/public');
+        $candidate = $base . DIRECTORY_SEPARATOR . $this->path;
+
+        $realBase = realpath($base);
+        $realCandidate = realpath(dirname($candidate)) . DIRECTORY_SEPARATOR . basename($candidate);
+
+        if (! $realBase || ! str_starts_with($realCandidate, $realBase)) {
+            throw new \RuntimeException("Path traversal detected: {$this->path}");
         }
 
-        return storage_path('app/public/' . $this->path);
+        return $candidate;
     }
 
     /**

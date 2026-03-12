@@ -6,6 +6,7 @@
 ])
 
 @php
+    $src = ltrim(str_replace(['../', '..\\'], '', $src), '/');
     $info = pathinfo($src);
     $dir = $info['dirname'] !== '.' ? $info['dirname'] . '/' : '';
     $filename = $info['filename'];
