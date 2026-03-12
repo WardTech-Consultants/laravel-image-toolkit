@@ -32,6 +32,13 @@ class OptimizeImage implements ShouldQueue
             return;
         }
 
+        // Validate the file is actually an image before processing
+        $imageInfo = @getimagesize($absolutePath);
+        if ($imageInfo === false) {
+            Log::warning("ImageToolkit: Not a valid image file — {$absolutePath}");
+            return;
+        }
+
         $this->cleanupVariants($absolutePath);
         $this->optimizeOriginal($absolutePath);
         $this->generateWebp($absolutePath);
@@ -48,8 +55,16 @@ class OptimizeImage implements ShouldQueue
         $dir = $info['dirname'];
         $filename = $info['filename'];
 
-        // Match variant files: filename-{number}.ext and filename-{number}.webp
-        $pattern = $dir . '/' . preg_quote($filename, '/');
+        // Verify the directory is within expected boundaries
+        $base = $this->image->disk === 'public_path' ? public_path() : storage_path('app/public');
+        $realBase = realpath($base);
+        $realDir = realpath($dir);
+
+        if (! $realBase || ! $realDir || ! str_starts_with($realDir, $realBase)) {
+            Log::warning("ImageToolkit: Cleanup skipped — directory outside expected boundary: {$dir}");
+            return;
+        }
+
         $globPattern = $dir . '/' . $filename . '-*';
 
         foreach (glob($globPattern) as $file) {
@@ -59,7 +74,7 @@ class OptimizeImage implements ShouldQueue
 
             if (ctype_digit($suffix)) {
                 unlink($file);
-                Log::info("ImageToolkit: Cleaned up old variant {$file}");
+                $this->verboseLog("Cleaned up old variant {$file}");
             }
         }
 
@@ -67,7 +82,7 @@ class OptimizeImage implements ShouldQueue
         $webpPath = $dir . '/' . $filename . '.webp';
         if ($info['extension'] !== 'webp' && file_exists($webpPath)) {
             unlink($webpPath);
-            Log::info("ImageToolkit: Cleaned up old WebP {$webpPath}");
+            $this->verboseLog("Cleaned up old WebP {$webpPath}");
         }
     }
 
@@ -77,6 +92,13 @@ class OptimizeImage implements ShouldQueue
 
         if (! $apiKey) {
             Log::warning('ImageToolkit: No Imagify API key configured, skipping API optimization.');
+            return;
+        }
+
+        // Validate MIME type before sending to external API
+        $mimeType = mime_content_type($absolutePath);
+        if (! $mimeType || ! str_starts_with($mimeType, 'image/')) {
+            Log::warning("ImageToolkit: Skipping non-image file — {$absolutePath} (MIME: {$mimeType})");
             return;
         }
 
@@ -92,8 +114,18 @@ class OptimizeImage implements ShouldQueue
         ]);
 
         if ($response->successful()) {
-            $optimizedContent = $response->body();
-            file_put_contents($absolutePath, $optimizedContent);
+            // Write to a temp file first, validate it's a real image, then replace
+            $tempPath = $absolutePath . '.tmp';
+            file_put_contents($tempPath, $response->body());
+
+            $validImage = @getimagesize($tempPath);
+            if ($validImage === false) {
+                unlink($tempPath);
+                Log::error("ImageToolkit: Imagify returned invalid image data for {$this->image->path}");
+                return;
+            }
+
+            rename($tempPath, $absolutePath);
 
             $optimizedSize = filesize($absolutePath);
             $this->image->update(['optimized_size' => $optimizedSize]);
@@ -101,7 +133,13 @@ class OptimizeImage implements ShouldQueue
             $savings = round((1 - $optimizedSize / max($originalSize, 1)) * 100, 1);
             Log::info("ImageToolkit: Imagify optimized {$this->image->path} — {$originalSize}B → {$optimizedSize}B ({$savings}% savings)");
         } else {
-            Log::error("ImageToolkit: Imagify API error for {$this->image->path} — {$response->status()}: {$response->body()}");
+            $message = "ImageToolkit: Imagify API error for {$this->image->path} — HTTP {$response->status()}";
+
+            if ($this->isVerbose()) {
+                $message .= ': ' . $response->body();
+            }
+
+            Log::error($message);
         }
     }
 
@@ -129,7 +167,7 @@ class OptimizeImage implements ShouldQueue
 
         $originalSize = filesize($absolutePath);
         $webpSize = filesize($webpPath);
-        Log::info("ImageToolkit: WebP generated for {$this->image->path} — {$originalSize}B → {$webpSize}B");
+        $this->verboseLog("WebP generated for {$this->image->path} — {$originalSize}B → {$webpSize}B");
     }
 
     protected function generateSizedVariants(string $absolutePath): void
@@ -161,7 +199,7 @@ class OptimizeImage implements ShouldQueue
             $this->saveGdImage($resized, $variantPath, $extension);
 
             $variantSize = filesize($variantPath);
-            Log::info("ImageToolkit: Generated {$size}px variant for {$this->image->path} — {$variantSize}B");
+            $this->verboseLog("Generated {$size}px variant for {$this->image->path} — {$variantSize}B");
 
             // Save WebP variant
             $webpVariantPath = $info['dirname'] . '/' . $info['filename'] . "-{$size}.webp";
@@ -169,7 +207,7 @@ class OptimizeImage implements ShouldQueue
             imagewebp($resized, $webpVariantPath, $webpQuality);
 
             $webpVariantSize = filesize($webpVariantPath);
-            Log::info("ImageToolkit: Generated {$size}px WebP variant for {$this->image->path} — {$webpVariantSize}B");
+            $this->verboseLog("Generated {$size}px WebP variant for {$this->image->path} — {$webpVariantSize}B");
 
             imagedestroy($resized);
         }
@@ -259,5 +297,17 @@ class OptimizeImage implements ShouldQueue
             'ultra' => '2',
             default => '1',
         };
+    }
+
+    protected function isVerbose(): bool
+    {
+        return (bool) config('image-toolkit.verbose_logging', false);
+    }
+
+    protected function verboseLog(string $message): void
+    {
+        if ($this->isVerbose()) {
+            Log::info("ImageToolkit: {$message}");
+        }
     }
 }
