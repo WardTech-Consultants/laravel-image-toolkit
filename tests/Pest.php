@@ -1,0 +1,5 @@
+<?php
+
+use WardTech\ImageToolkit\Tests\TestCase;
+
+uses(TestCase::class)->in(__DIR__);
