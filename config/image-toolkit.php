@@ -23,4 +23,6 @@ return [
 
     'extensions' => ['jpg', 'jpeg', 'png', 'gif', 'webp'],
 
+    'verbose_logging' => env('IMAGE_TOOLKIT_VERBOSE_LOGGING', false),
+
 ];
