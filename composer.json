@@ -2,7 +2,7 @@
     "name": "wardtech/laravel-image-toolkit",
     "description": "Image optimization (Imagify API) with responsive WebP picture Blade component",
     "type": "library",
-    "license": "proprietary",
+    "license": "proprietary", 
     "authors": [
         {
             "name": "WardTech"
