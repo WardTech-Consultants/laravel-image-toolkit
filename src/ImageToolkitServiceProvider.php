@@ -30,6 +30,14 @@ class ImageToolkitServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__ . '/../resources/views' => resource_path('views/vendor/image-toolkit'),
             ], 'image-toolkit-views');
+
+            $this->publishes([
+                __DIR__ . '/../resources/js/react' => resource_path('js/vendor/image-toolkit/react'),
+            ], 'image-toolkit-react');
+
+            $this->publishes([
+                __DIR__ . '/../resources/js/vue' => resource_path('js/vendor/image-toolkit/vue'),
+            ], 'image-toolkit-vue');
         }
     }
 }

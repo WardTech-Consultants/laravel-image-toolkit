@@ -93,6 +93,78 @@ php artisan images:optimize --force
 />
 ```
 
+### React Component
+
+Publish the React component:
+
+```bash
+php artisan vendor:publish --tag=image-toolkit-react
+```
+
+This copies `Picture.jsx` to `resources/js/vendor/image-toolkit/react/`.
+
+```jsx
+import Picture from './vendor/image-toolkit/react/Picture';
+
+{/* Responsive picture with all variants */}
+<Picture src="images/hero.jpg" alt="Hero image" />
+
+{/* With responsive sizes hint */}
+<Picture src="images/hero.jpg" alt="Hero image" sizes="(min-width: 1024px) 50vw, 100vw" />
+
+{/* Fixed size variant */}
+<Picture src="images/avatar.jpg" alt="Avatar" size={150} />
+
+{/* With additional attributes */}
+<Picture src="images/hero.jpg" alt="Hero" className="w-full rounded-lg" loading="lazy" />
+
+{/* Custom variant widths */}
+<Picture src="images/hero.jpg" alt="Hero" widths={[200, 400, 800]} />
+
+{/* Assets served from a CDN */}
+<Picture src="images/hero.jpg" alt="Hero" baseUrl="https://cdn.example.com" />
+```
+
+### Vue Component
+
+Publish the Vue component:
+
+```bash
+php artisan vendor:publish --tag=image-toolkit-vue
+```
+
+This copies `Picture.vue` to `resources/js/vendor/image-toolkit/vue/`.
+
+```vue
+<script setup>
+import Picture from './vendor/image-toolkit/vue/Picture.vue';
+</script>
+
+<template>
+    <!-- Responsive picture with all variants -->
+    <Picture src="images/hero.jpg" alt="Hero image" />
+
+    <!-- With responsive sizes hint -->
+    <Picture src="images/hero.jpg" alt="Hero image" sizes="(min-width: 1024px) 50vw, 100vw" />
+
+    <!-- Fixed size variant -->
+    <Picture src="images/avatar.jpg" alt="Avatar" :size="150" />
+
+    <!-- With additional attributes -->
+    <Picture src="images/hero.jpg" alt="Hero" class="w-full rounded-lg" loading="lazy" />
+
+    <!-- Custom variant widths -->
+    <Picture src="images/hero.jpg" alt="Hero" :widths="[200, 400, 800]" />
+
+    <!-- Assets served from a CDN -->
+    <Picture src="images/hero.jpg" alt="Hero" base-url="https://cdn.example.com" />
+</template>
+```
+
+### React/Vue vs Blade
+
+The Blade component checks the filesystem server-side and only includes variants that actually exist. The React and Vue components build URLs based on the naming convention (`filename-{size}.webp`), assuming all variants are present. Browsers handle missing srcset entries gracefully by falling back to the next available source.
+
 ### Customizing Views
 
 ```bash
