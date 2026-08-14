@@ -1,6 +1,6 @@
 {
     "name": "wardtech/laravel-image-toolkit",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Image optimization (Imagify API) with responsive WebP picture Blade component, React & Vue Components",
     "type": "library",
     "license": "proprietary", 
