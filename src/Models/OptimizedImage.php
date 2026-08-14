@@ -15,6 +15,10 @@ class OptimizedImage extends Model
         'optimized',
     ];
 
+    protected $attributes = [
+        'optimized' => false,
+    ];
+
     protected function casts(): array
     {
         return [
