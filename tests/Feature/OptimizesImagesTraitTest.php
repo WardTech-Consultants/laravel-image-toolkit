@@ -135,3 +135,19 @@ it('respects the auto_optimize config switch', function () {
     Queue::assertNothingPushed();
     expect(OptimizedImage::count())->toBe(0);
 });
+
+it('leaves files alone on delete when auto_optimize is off', function () {
+    Queue::fake();
+
+    makePhotoFile($this->storage . '/kept.jpg');
+    makePhotoFile($this->storage . '/kept-150.jpg');
+
+    $photo = Photo::create(['image_path' => 'kept.jpg']);
+
+    config(['image-toolkit.auto_optimize' => false]);
+
+    $photo->delete();
+
+    expect(file_exists($this->storage . '/kept.jpg'))->toBeTrue()
+        ->and(file_exists($this->storage . '/kept-150.jpg'))->toBeTrue();
+});

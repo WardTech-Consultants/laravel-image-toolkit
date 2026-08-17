@@ -188,7 +188,13 @@ class ImageToolkit
 
         $webpPath = $dir . '/' . $filename . '.webp';
 
-        if (($info['extension'] ?? null) !== 'webp' && is_file($webpPath)) {
+        // A WebP source has no separate WebP twin. Compare case-insensitively,
+        // and confirm the twin is not the source itself — on a case-insensitive
+        // filesystem "photo.WEBP" and "photo.webp" are the same file.
+        $twinIsSource = strtolower($info['extension'] ?? '') === 'webp'
+            || (is_file($webpPath) && realpath($webpPath) === realpath($absolutePath));
+
+        if (! $twinIsSource && is_file($webpPath)) {
             @unlink($webpPath);
             $deleted++;
         }

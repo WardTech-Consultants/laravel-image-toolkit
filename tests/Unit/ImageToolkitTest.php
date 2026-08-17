@@ -122,6 +122,38 @@ it('deletes generated variants but leaves the original alone', function () {
         ->and(file_exists($this->storage . '/hero-notes.jpg'))->toBeTrue();
 });
 
+it('never deletes a webp source as if it were a generated twin', function () {
+    $img = imagecreatetruecolor(200, 150);
+    imagewebp($img, $this->storage . '/photo.WEBP', 70);
+    imagewebp($img, $this->storage . '/photo-150.webp', 70);
+    imagedestroy($img);
+
+    // On macOS and Windows "photo.WEBP" and "photo.webp" are one and the same
+    // file. This test runs on a case-sensitive filesystem, so a symlink stands
+    // in for that: the twin path must resolve to the source and be left alone.
+    symlink($this->storage . '/photo.WEBP', $this->storage . '/photo.webp');
+
+    $deleted = $this->toolkit->deleteVariants('photo.WEBP');
+
+    expect(file_exists($this->storage . '/photo.WEBP'))->toBeTrue()
+        ->and(is_link($this->storage . '/photo.webp'))->toBeTrue()
+        ->and(file_exists($this->storage . '/photo-150.webp'))->toBeFalse()
+        ->and($deleted)->toBe(1);
+});
+
+it('still removes the webp twin of a jpeg source', function () {
+    makeImage($this->storage . '/twin.jpg');
+
+    $img = imagecreatetruecolor(200, 150);
+    imagewebp($img, $this->storage . '/twin.webp', 70);
+    imagedestroy($img);
+
+    $this->toolkit->deleteVariants('twin.jpg');
+
+    expect(file_exists($this->storage . '/twin.jpg'))->toBeTrue()
+        ->and(file_exists($this->storage . '/twin.webp'))->toBeFalse();
+});
+
 it('forgets an image, its variants and optionally the original', function () {
     Queue::fake();
 

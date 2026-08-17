@@ -19,7 +19,8 @@ use WardTech\ImageToolkit\Facades\ImageToolkit;
  *     }
  *
  * On save, changed images are queued for optimization. On delete, the
- * generated variants (and, by default, the source file) are removed.
+ * generated variants (and, by default, the source file) are removed. Setting
+ * `image-toolkit.auto_optimize` to false disables both, leaving files untouched.
  *
  * Attributes may hold a single path or an array of paths (e.g. a JSON cast).
  */
@@ -44,6 +45,11 @@ trait OptimizesImages
         });
 
         static::deleted(function (Model $model): void {
+            // The trait is off entirely, so it must not delete anything either.
+            if (! config('image-toolkit.auto_optimize', true)) {
+                return;
+            }
+
             // Leave files alone for soft deletes — they come back on restore.
             if (method_exists($model, 'isForceDeleting') && ! $model->isForceDeleting()) {
                 return;

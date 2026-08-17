@@ -129,8 +129,9 @@ Attributes may hold a single path or an array of paths (e.g. a JSON-cast column)
 Override the disk per model with `protected string $optimizableImageDisk = 'public_path';`,
 and re-run everything for a record with `$model->optimizeImages(force: true)`.
 
-Set `IMAGE_TOOLKIT_AUTO_OPTIMIZE=false` to switch the trait off (useful while seeding),
-or `IMAGE_TOOLKIT_AUTO_OPTIMIZE_SYNC=true` when there is no queue worker running.
+Set `IMAGE_TOOLKIT_AUTO_OPTIMIZE=false` to switch the trait off (useful while seeding).
+Nothing is optimized on save and nothing is deleted on delete — the trait becomes inert.
+Set `IMAGE_TOOLKIT_AUTO_OPTIMIZE_SYNC=true` when there is no queue worker running.
 
 ### Blade Component
 
