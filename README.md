@@ -51,6 +51,11 @@ IMAGIFY_API_KEY=your-api-key-here
 | `quality.png` | `8` | PNG compression level (0-9) |
 | `scan_paths` | `['public/images', 'storage/app/public']` | Directories to scan |
 | `extensions` | `['jpg', 'jpeg', 'png', 'gif', 'webp']` | File types to process |
+| `default_disk` | `public` | Disk used by the facade/trait — `public` (`storage/app/public`) or `public_path` (`public/`) |
+| `auto_optimize` | `true` | Master switch for the `OptimizesImages` trait |
+| `auto_optimize_sync` | `false` | Run runtime optimizations inline instead of queueing them |
+| `queue.connection` | `null` | Queue connection for optimization jobs (null = default) |
+| `queue.name` | `null` | Queue name for optimization jobs (null = default) |
 
 ## Usage
 
@@ -66,6 +71,67 @@ php artisan images:optimize --sync
 # Re-process already optimized images
 php artisan images:optimize --force
 ```
+
+### Optimizing Uploads at Runtime
+
+The Artisan command is a sweep. For images uploaded through an admin panel, optimize
+them as they arrive with the `ImageToolkit` facade:
+
+```php
+use WardTech\ImageToolkit\Facades\ImageToolkit;
+
+// Queue optimization for a freshly uploaded file (path relative to the disk root)
+ImageToolkit::optimize('gallery/party.jpg');
+
+// Several at once
+ImageToolkit::optimizeMany(['gallery/one.jpg', 'gallery/two.jpg']);
+
+// Re-run for an image that was already optimized
+ImageToolkit::optimize('gallery/party.jpg', force: true);
+
+// Run inline instead of queueing
+ImageToolkit::optimizeNow('gallery/party.jpg');
+
+// Images stored in public/ rather than storage/app/public
+ImageToolkit::optimize('images/hero.jpg', ImageToolkit::DISK_PUBLIC);
+
+// Drop the generated variants and the tracking record (optionally the original too)
+ImageToolkit::forget('gallery/party.jpg', deleteOriginal: true);
+```
+
+Paths are validated against the disk root, so a traversal attempt never resolves
+outside `storage/app/public` (or `public/`).
+
+### Model Trait
+
+Better still, let the model handle it. Add `OptimizesImages` and list the attributes
+holding image paths:
+
+```php
+use WardTech\ImageToolkit\Concerns\OptimizesImages;
+
+class GalleryImage extends Model
+{
+    use OptimizesImages;
+
+    protected array $optimizableImages = ['image_path'];
+}
+```
+
+- On create, every listed image is queued for optimization.
+- On update, only images that actually changed are re-optimized; variants belonging
+  to a replaced path are deleted.
+- On delete, variants **and** the source files are removed. Set
+  `protected bool $deleteImageFilesOnDelete = false;` to keep the originals.
+- Soft-deleted models keep their files until they are force deleted.
+
+Attributes may hold a single path or an array of paths (e.g. a JSON-cast column).
+Override the disk per model with `protected string $optimizableImageDisk = 'public_path';`,
+and re-run everything for a record with `$model->optimizeImages(force: true)`.
+
+Set `IMAGE_TOOLKIT_AUTO_OPTIMIZE=false` to switch the trait off (useful while seeding).
+Nothing is optimized on save and nothing is deleted on delete — the trait becomes inert.
+Set `IMAGE_TOOLKIT_AUTO_OPTIMIZE_SYNC=true` when there is no queue worker running.
 
 ### Blade Component
 

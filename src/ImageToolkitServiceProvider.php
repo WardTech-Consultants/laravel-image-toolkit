@@ -10,6 +10,10 @@ class ImageToolkitServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/image-toolkit.php', 'image-toolkit');
+
+        $this->app->singleton(ImageToolkit::class, fn () => new ImageToolkit());
+
+        $this->app->alias(ImageToolkit::class, 'image-toolkit');
     }
 
     public function boot(): void

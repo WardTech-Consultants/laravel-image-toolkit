@@ -9,6 +9,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use WardTech\ImageToolkit\ImageToolkit;
 use WardTech\ImageToolkit\Models\OptimizedImage;
 
 class OptimizeImage implements ShouldQueue
@@ -51,38 +52,11 @@ class OptimizeImage implements ShouldQueue
 
     protected function cleanupVariants(string $absolutePath): void
     {
-        $info = pathinfo($absolutePath);
-        $dir = $info['dirname'];
-        $filename = $info['filename'];
+        $deleted = app(ImageToolkit::class)
+            ->deleteVariantsForAbsolutePath($absolutePath, $this->image->disk);
 
-        // Verify the directory is within expected boundaries
-        $base = $this->image->disk === 'public_path' ? public_path() : storage_path('app/public');
-        $realBase = realpath($base);
-        $realDir = realpath($dir);
-
-        if (! $realBase || ! $realDir || ! str_starts_with($realDir, $realBase)) {
-            Log::warning("ImageToolkit: Cleanup skipped — directory outside expected boundary: {$dir}");
-            return;
-        }
-
-        $globPattern = $dir . '/' . $filename . '-*';
-
-        foreach (glob($globPattern) as $file) {
-            // Only delete files matching the variant naming pattern (filename-123.ext)
-            $basename = pathinfo($file, PATHINFO_FILENAME);
-            $suffix = str_replace($filename . '-', '', $basename);
-
-            if (ctype_digit($suffix)) {
-                unlink($file);
-                $this->verboseLog("Cleaned up old variant {$file}");
-            }
-        }
-
-        // Also remove the full-size WebP if it exists
-        $webpPath = $dir . '/' . $filename . '.webp';
-        if ($info['extension'] !== 'webp' && file_exists($webpPath)) {
-            unlink($webpPath);
-            $this->verboseLog("Cleaned up old WebP {$webpPath}");
+        if ($deleted > 0) {
+            $this->verboseLog("Cleaned up {$deleted} stale variant(s) for {$this->image->path}");
         }
     }
 
